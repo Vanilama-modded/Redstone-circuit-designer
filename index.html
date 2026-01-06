@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redstone Circuit Designer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #toolbar {
+            width: 200px;
+            background: #2a2a2a;
+            padding: 10px;
+            overflow-y: auto;
+            border-right: 2px solid #444;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            background: #1a1a1a;
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+        
+        .component-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            border: 2px solid #555;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .component-button:hover {
+            background: #444;
+            border-color: #777;
+        }
+        
+        .component-button.active {
+            background: #4a7c59;
+            border-color: #5a8c69;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .control-button {
+            padding: 8px 15px;
+            margin: 0 5px;
+            background: #444;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        .control-button:hover {
+            background: #555;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        #debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+
+        #context-menu {
+            display: none;
+            position: absolute;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px 0;
+            min-width: 150px;
+            z-index: 2000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .menu-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #eee;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: #444;
+        }
+
+        .menu-separator {
+            height: 1px;
+            background: #444;
+            margin: 4px 0;
+        }
+        
+        @media (max-width: 768px) {
+            #toolbar {
+                width: 150px;
+            }
+            
+            .component-button {
+                padding: 8px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="context-menu"></div>
+        <div id="toolbar">
+            <h3>Components</h3>
+            <button class="component-button" data-component="redstone_dust">Redstone Dust</button>
+            <button class="component-button" data-component="redstone_torch">Redstone Torch</button>
+            <button class="component-button" data-component="lever">Lever</button>
+            <button class="component-button" data-component="button">Button</button>
+            <button class="component-button" data-component="repeater">Repeater</button>
+            <button class="component-button" data-component="comparator">Comparator</button>
+            <button class="component-button" data-component="piston">Piston</button>
+            <button class="component-button" data-component="sticky_piston">Sticky Piston</button>
+            <button class="component-button" data-component="observer">Observer</button>
+            <button class="component-button" data-component="redstone_block">Redstone Block</button>
+            <button class="component-button" data-component="stone">Stone</button>
+            <hr>
+            <button class="component-button" data-component="erase">Erase</button>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+            <div id="controls">
+                <button id="play-pause" class="control-button">Play</button>
+                <button id="reset" class="control-button">Reset</button>
+                <button id="clear" class="control-button">Clear All</button>
+            </div>
+            <div id="info">
+                <div>Ticks: <span id="tick-count">0</span></div>
+                <div>TPS: <span id="tps">20</span></div>
+            </div>
+            
+            <div id="debug-info">
+                <div>Debug Mode: F3 to toggle</div>
+                <div>QC Indicators: F4 to toggle</div>
+                <div>Entities: <span id="entity-count">0</span></div>
+                <div>Scheduled Ticks: <span id="scheduled-ticks">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://esm.sh/three@0.158.0",
+            "nipplejs": "https://esm.sh/nipplejs@0.10.1"
+        }
+    }
+    </script>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
+
